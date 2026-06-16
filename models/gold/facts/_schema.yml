@@ -1,0 +1,217 @@
+version: 2
+
+models:
+
+  # ---------------------------------------------------------------------------
+  - name: fact_gl_journal
+    description: >
+      Gold fact — Core general ledger. One row per posted accounting line.
+      Grain: TRANSACTION × TRANSACTION_LINE × ACCOUNTING_BOOK.
+      Single source of truth for all three financial statements.
+      Critical filters: POSTING = TRUE, VOID = FALSE (applied in Silver).
+      FX: functional_amount_local (subsidiary currency) + reporting_amount_usd (USD).
+    config:
+      materialized: incremental
+      unique_key: gl_journal_key
+      incremental_strategy: merge
+      tags: [gold, fact, gl_journal]
+    columns:
+      - name: gl_journal_key
+        description: "Surrogate key — hash of TAL surrogate key"
+        tests: [not_null, unique]
+      - name: transaction_ref
+        description: "TRANID from NetSuite — degenerate dimension for source drill-through"
+      - name: account_key
+        description: "FK → dim_account. NULL when account not in dim (inactive accounts)."
+        tests:
+          - relationships:
+              to: ref('dim_account')
+              field: account_key
+              config:
+                severity: warn
+      - name: subsidiary_key
+        description: "FK → dim_subsidiary. NULL when transaction line has no subsidiary."
+        tests:
+          - relationships:
+              to: ref('dim_subsidiary')
+              field: subsidiary_key
+              config:
+                severity: warn
+      - name: period_key
+        description: "FK → dim_period"
+        tests:
+          - relationships:
+              to: ref('dim_period')
+              field: period_key
+              config:
+                severity: warn
+      - name: department_key
+        description: "FK → dim_department. NULL when no department on transaction line."
+      - name: classification_key
+        description: "FK → dim_classification. NULL when no class on transaction line."
+      - name: currency_key
+        description: "FK → dim_currency."
+      - name: account_type
+        description: "Carried from DIM_ACCOUNT — drives statement routing."
+      - name: reporting_amount_usd
+        description: "Amount translated to USD using GENERAL_RATE from CONSOLIDATEDEXCHANGERATE."
+      - name: is_posting
+        description: "Always TRUE in this table (non-posting filtered in Silver)"
+        tests:
+          - accepted_values:
+              values: [true]
+              config:
+                severity: warn
+      - name: dw_created_at
+        tests: [not_null]
+      - name: dw_updated_at
+        tests: [not_null]
+
+  # ---------------------------------------------------------------------------
+  - name: fact_income_statement
+    description: >
+      Gold fact — P&L / Income Statement.
+      Grain: subsidiary × period × department × classification × account.
+      Filtered to Income, OthIncome, DeferRevenue, COGS, Expense, OthExpense account types.
+      Elimination subsidiaries excluded. All amounts in USD (AVERAGE_RATE translation).
+    config:
+      materialized: incremental
+      unique_key: income_statement_key
+      incremental_strategy: merge
+      tags: [gold, fact, income_statement]
+    columns:
+      - name: income_statement_key
+        tests: [not_null, unique]
+      - name: subsidiary_key
+        tests:
+          - relationships:
+              to: ref('dim_subsidiary')
+              field: subsidiary_key
+              config:
+                severity: warn
+      - name: period_key
+        tests:
+          - relationships:
+              to: ref('dim_period')
+              field: period_key
+              config:
+                severity: warn
+      - name: account_key
+        tests:
+          - relationships:
+              to: ref('dim_account')
+              field: account_key
+              config:
+                severity: warn
+      - name: net_revenue_usd
+        description: "Net Revenue in USD. Positive = revenue."
+      - name: gross_profit_usd
+        description: "Gross Profit = Net Revenue - Cost of Revenue"
+      - name: ebitda_usd
+        description: "Earnings before interest, tax, depreciation, amortization"
+      - name: net_income_usd
+        description: "Net Income = EBIT - Interest Expense"
+      - name: dw_created_at
+        tests: [not_null]
+      - name: dw_updated_at
+        tests: [not_null]
+
+  # ---------------------------------------------------------------------------
+  - name: fact_balance_sheet
+    description: >
+      Gold fact — Balance Sheet closing balances.
+      Grain: subsidiary × period × account.
+      Cumulative balance logic: closing = SUM of ALL movements from inception to period-end.
+    config:
+      materialized: incremental
+      unique_key: balance_sheet_key
+      incremental_strategy: merge
+      tags: [gold, fact, balance_sheet]
+    columns:
+      - name: balance_sheet_key
+        tests: [not_null, unique]
+      - name: subsidiary_key
+        tests:
+          - relationships:
+              to: ref('dim_subsidiary')
+              field: subsidiary_key
+              config:
+                severity: warn
+      - name: period_key
+        tests:
+          - relationships:
+              to: ref('dim_period')
+              field: period_key
+              config:
+                severity: warn
+      - name: account_key
+        tests:
+          - relationships:
+              to: ref('dim_account')
+              field: account_key
+              config:
+                severity: warn
+      - name: closing_balance_usd
+        description: "Cumulative closing balance in USD — sum from inception to period-end"
+      - name: dw_created_at
+        tests: [not_null]
+      - name: dw_updated_at
+        tests: [not_null]
+
+  # ---------------------------------------------------------------------------
+  - name: fact_cash_flow
+    description: >
+      Gold fact — Cash Flow Statement.
+      Grain: subsidiary × period × cash_flow_category × account.
+      Only accounts with CASHFLOWRATE populated are included.
+    config:
+      materialized: incremental
+      unique_key: cash_flow_key
+      incremental_strategy: merge
+      tags: [gold, fact, cash_flow]
+    columns:
+      - name: cash_flow_key
+        tests: [not_null, unique]
+      - name: subsidiary_key
+        tests:
+          - relationships:
+              to: ref('dim_subsidiary')
+              field: subsidiary_key
+              config:
+                severity: warn
+      - name: period_key
+        tests:
+          - relationships:
+              to: ref('dim_period')
+              field: period_key
+              config:
+                severity: warn
+      - name: cash_flow_category
+        tests:
+          - accepted_values:
+              values: ['Operating', 'Investing', 'Financing']
+              config:
+                severity: warn
+      - name: cash_movement_usd
+      - name: dw_created_at
+        tests: [not_null]
+      - name: dw_updated_at
+        tests: [not_null]
+
+  # ---------------------------------------------------------------------------
+  - name: fact_trial_balance
+    description: >
+      Gold view — Trial balance for audit drill-down.
+      Grain: account × subsidiary × period (opening + movement + closing).
+    config:
+      materialized: view
+      tags: [gold, audit, trial_balance]
+
+  # ---------------------------------------------------------------------------
+  - name: fact_intercompany_recon
+    description: >
+      Gold view — Intercompany reconciliation.
+      Surfaces elimination subsidiary entries and flags unreconciled balances.
+    config:
+      materialized: view
+      tags: [gold, audit, intercompany]

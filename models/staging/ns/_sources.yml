@@ -1,0 +1,62 @@
+# The output have been generated with the assistance of Claude at 2026-06-16T10:00:00Z UTC. The content has been verified by the designated engineer.
+
+version: 2
+
+sources:
+  - name: ns
+    description: "NetSuite ERP source tables ingested via Fivetran into Snowflake Bronze layer."
+    database: "{{ var('bronze_database') }}"
+    schema:   "{{ var('bronze_schema') }}"
+    freshness:
+      warn_after:  {count: 25, period: hour}
+      error_after: {count: 49, period: hour}
+    loaded_at_field: _FIVETRAN_SYNCED
+
+    tables:
+      - name: ACCOUNT
+        description: "NetSuite Chart of Accounts — one row per GL account."
+
+      - name: ACCOUNTINGPERIOD
+        description: "NetSuite fiscal calendar — one row per accounting period (month, quarter, year)."
+
+      - name: CLASSIFICATION
+        description: "NetSuite Classification segment — business line / product group."
+
+      - name: CONSOLIDATEDEXCHANGERATE
+        description: "Period-level FX rates for multi-currency consolidation (USD, CAD, GBP)."
+
+      - name: CURRENCY
+        description: "Currency master — one row per currency."
+
+      - name: DEPARTMENT
+        description: "Department hierarchy — cost centres within each subsidiary."
+
+      - name: EMPLOYEE
+        description: "Employee master — one row per active or former employee."
+
+      - name: ENTITY
+        description: "Unified entity master — customers, vendors, employees, partners."
+
+      - name: ITEM
+        description: "Product and service item master."
+
+      - name: LOCATION
+        description: "Physical and operational location master."
+
+      - name: SUBSIDIARY
+        description: "Legal entity hierarchy — five portfolio companies under PCP Holdings."
+
+      - name: TRANSACTION
+        description: "Transaction header — one row per financial document (JE, invoice, bill, etc.)."
+        loaded_at_field: _FIVETRAN_SYNCED
+
+      - name: TRANSACTIONLINE
+        description: "Transaction line detail — one row per line per transaction."
+        loaded_at_field: _FIVETRAN_SYNCED
+
+      - name: TRANSACTIONACCOUNTINGLINE
+        description: "Double-entry GL lines — the core general ledger accounting table."
+
+      - name: TRANSACTIONSTATUS
+        description: "Transaction status lookup — maps status codes to human-readable labels."
+        loaded_at_field: INGESTION_TIME

@@ -1,0 +1,141 @@
+# The output have been generated with the assistance of Claude at 2026-06-16T10:00:00Z UTC. The content has been verified by the designated engineer.
+
+version: 2
+
+models:
+
+  - name: stg_ns_account
+    description: "Silver staging model for NetSuite Chart of Accounts. 1 row per GL account."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_accounting_period
+    description: "Silver staging model for NetSuite fiscal calendar. 1 row per accounting period."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_classification
+    description: "Silver staging model for NetSuite Classification segment. 1 row per classification."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_consolidated_exchange_rate
+    description: "Silver staging model for NetSuite period FX rates. 1 row per period/currency pair."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_currency
+    description: "Silver staging model for NetSuite currency master. 1 row per currency."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_department
+    description: "Silver staging model for NetSuite department hierarchy. 1 row per department."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_employee
+    description: "Silver staging model for NetSuite employee master. 1 row per employee."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_entity
+    description: "Silver staging model for NetSuite entity master (customers, vendors, employees). 1 row per entity."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_item
+    description: "Silver staging model for NetSuite item master. 1 row per item."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_location
+    description: "Silver staging model for NetSuite location master. 1 row per location."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_subsidiary
+    description: "Silver staging model for NetSuite subsidiary/legal entity hierarchy. 1 row per subsidiary."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_transaction
+    description: "Silver staging model for NetSuite transaction headers. 1 row per financial document."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_transaction_line
+    description: "Silver staging model for NetSuite transaction lines. 1 row per transaction line."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_transaction_accounting_line
+    description: "Silver staging model for NetSuite GL accounting lines. 1 row per posted accounting entry."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_ns_transaction_status
+    description: "Silver staging model for NetSuite transaction status lookup. 1 row per status/type combination."
+    columns:
+      - name: SURROGATE_KEY
+        description: "Surrogate primary key — MD5 hash of the natural key column(s)."
+        data_tests:
+          - not_null
+          - unique
+
