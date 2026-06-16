@@ -20,7 +20,6 @@
 --               PARENT supports two-level hierarchy within each subsidiary
 -- Surrogate key: dbt_utils.generate_surrogate_key(['id'])
 -- Generator   : gold-script-generator | Snowflake + dbt | PCP Capstone | 2026-06
--- Last reviewed: 2026-06-16
 -- =============================================================================
 
 WITH source AS (
