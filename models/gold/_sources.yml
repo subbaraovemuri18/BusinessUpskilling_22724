@@ -1,0 +1,65 @@
+version: 2
+
+# =============================================================================
+# Gold Layer — Silver sources
+# These source declarations reference the SILVER schema tables that feed
+# the Gold dimension and fact models.
+# Add this file to models/gold/ or merge into your existing _sources.yml.
+# Generator: gold-script-generator | Snowflake + dbt | PCP Capstone | 2026-06
+# =============================================================================
+
+sources:
+  - name: silver
+    database: "{{ var('silver_database', 'BUI_SUBBARAO_VEMURI_DB') }}"
+    schema:   SILVER
+    description: "Silver layer — cleaned and validated NetSuite GL data"
+    loaded_at_field: SILVER_UPDATED_ON_TS_UTC
+    freshness:
+      warn_after:  {count: 25, period: hour}
+      error_after: {count: 49, period: hour}
+
+    tables:
+      - name: stg_ns_account
+        description: "Chart of Accounts — ACCTTYPE, CASHFLOWRATE, GENERALRATE"
+
+      - name: stg_ns_accounting_period
+        description: "Fiscal calendar — posting periods, close status"
+
+      - name: stg_ns_subsidiary
+        description: "Legal entity hierarchy — consolidation tree, IsElimination"
+
+      - name: stg_ns_department
+        description: "Department / cost centre hierarchy"
+
+      - name: stg_ns_classification
+        description: "Business line / class segment"
+
+      - name: stg_ns_currency
+        description: "Currency master — IsBaseCurrency identifies USD"
+
+      - name: stg_ns_consolidated_exchange_rate
+        description: "Period FX rates — AVERAGE_RATE, CURRENT_RATE, HISTORICAL_RATE"
+
+      - name: stg_ns_transaction
+        description: "Transaction headers — TYPE, TRANDATE, VOID, POSTING"
+
+      - name: stg_ns_transaction_line
+        description: "Transaction lines — DEPARTMENT, CLASS, LOCATION, MAINLINE"
+
+      - name: stg_ns_transaction_accounting_line
+        description: "Double-entry GL lines — DEBIT, CREDIT, AMOUNT, POSTING"
+
+      - name: stg_ns_transaction_status
+        description: "Transaction status lookup — approved vs pending vs voided"
+
+      - name: stg_ns_entity
+        description: "Counterparty master — customers, vendors, employees"
+
+      - name: stg_ns_employee
+        description: "Employee master — department, subsidiary, location"
+
+      - name: stg_ns_item
+        description: "Item / product master"
+
+      - name: stg_ns_location
+        description: "Location master — offices, distribution centres, retail units"

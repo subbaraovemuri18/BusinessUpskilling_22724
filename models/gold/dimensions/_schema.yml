@@ -1,0 +1,207 @@
+version: 2
+
+models:
+
+  # ---------------------------------------------------------------------------
+  - name: dim_account
+    description: >
+      Gold dimension — Chart of Accounts. SCD1 (overwrite on change).
+      Grain: one row per active GL account.
+      ACCOUNT_TYPE drives financial statement routing.
+      FX_TRANSLATION_RATE_TYPE controls multi-currency consolidation method.
+    config:
+      materialized: incremental
+      unique_key: account_key
+      incremental_strategy: merge
+      tags: [gold, dimension, account]
+    columns:
+      - name: account_key
+        description: "Surrogate key — dbt_utils hash of account_id"
+        tests: [not_null, unique]
+      - name: account_id
+        description: "Natural key — NetSuite internal account ID"
+        tests: [not_null]
+      - name: account_number
+        description: "Chart of Accounts number"
+      - name: account_name
+        description: "Display name for the account"
+        tests: [not_null]
+      - name: account_type
+        description: "NetSuite ACCTTYPE — drives statement routing"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [
+                'Income', 'OthIncome', 'DeferRevenue',
+                'COGS',
+                'Expense', 'OthExpense', 'DeferExpense',
+                'Bank', 'AcctRec', 'OthCurrAsset', 'FixedAsset', 'OthAsset',
+                'AcctPay', 'OthCurrLiab', 'LongTermLiab',
+                'Equity', 'RetainEarnings',
+                'CredCard', 'UnbilledRec', 'NonPosting', 'Stat'
+              ]
+      - name: account_type_group
+        description: "Simplified grouping: Revenue | COGS | Expense | Asset | Liability | Equity | Non-Posting | Other"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Revenue', 'COGS', 'Expense', 'Asset', 'Liability', 'Equity', 'Non-Posting', 'Other']
+      - name: financial_statement
+        description: "Income Statement | Balance Sheet | Other"
+        tests:
+          - accepted_values:
+              values: ['Income Statement', 'Balance Sheet', 'Other']
+      - name: fx_translation_rate_type
+        description: "GENERAL_RATE — Average (P&L), Current (BS asset/liability), Historical (Equity)"
+      - name: cash_flow_rate
+        description: "CASHFLOWRATE — Operating | Investing | Financing | NULL (not on CF statement)"
+      - name: is_active
+        description: "TRUE when IS_INACTIVE = FALSE in NetSuite"
+        tests: [not_null]
+      - name: dw_created_at
+        tests: [not_null]
+      - name: dw_updated_at
+        tests: [not_null]
+      - name: dw_source_system
+        tests: [not_null]
+
+  # ---------------------------------------------------------------------------
+  - name: dim_subsidiary
+    description: >
+      Gold dimension — Legal entity / subsidiary hierarchy. SCD1.
+      Grain: one row per subsidiary.
+      IS_ELIMINATION flags the subsidiary used for intercompany netting.
+      PARENT_SUBSIDIARY_ID enables roll-up to PCP Holdings.
+    config:
+      materialized: incremental
+      unique_key: subsidiary_key
+      incremental_strategy: merge
+      tags: [gold, dimension, subsidiary]
+    columns:
+      - name: subsidiary_key
+        tests: [not_null, unique]
+      - name: subsidiary_id
+        tests: [not_null]
+      - name: subsidiary_name
+        tests: [not_null]
+      - name: is_elimination
+        description: "TRUE = elimination subsidiary used for intercompany netting"
+        tests: [not_null]
+      - name: is_active
+        tests: [not_null]
+      - name: dw_created_at
+        tests: [not_null]
+      - name: dw_updated_at
+        tests: [not_null]
+
+  # ---------------------------------------------------------------------------
+  - name: dim_period
+    description: >
+      Gold dimension — Fiscal calendar. SCD1.
+      Grain: one row per posting accounting period.
+      FISCAL_YEAR/QUARTER/MONTH derived from period start date.
+    config:
+      materialized: incremental
+      unique_key: period_key
+      incremental_strategy: merge
+      tags: [gold, dimension, period]
+    columns:
+      - name: period_key
+        tests: [not_null, unique]
+      - name: period_id
+        tests: [not_null]
+      - name: period_name
+        tests: [not_null]
+      - name: period_start_date
+        tests: [not_null]
+      - name: period_end_date
+        tests: [not_null]
+      - name: fiscal_year
+        tests: [not_null]
+      - name: fiscal_quarter
+        tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2, 3, 4]
+              config:
+                severity: warn
+      - name: dw_created_at
+        tests: [not_null]
+      - name: dw_updated_at
+        tests: [not_null]
+
+  # ---------------------------------------------------------------------------
+  - name: dim_department
+    description: >
+      Gold dimension — Department / cost centre hierarchy. SCD1.
+      Grain: one row per department.
+      Primary segmentation dimension for departmental P&L.
+    config:
+      materialized: incremental
+      unique_key: department_key
+      incremental_strategy: merge
+      tags: [gold, dimension, department]
+    columns:
+      - name: department_key
+        tests: [not_null, unique]
+      - name: department_id
+        tests: [not_null]
+      - name: department_name
+        tests: [not_null]
+      - name: is_active
+        tests: [not_null]
+      - name: dw_created_at
+        tests: [not_null]
+      - name: dw_updated_at
+        tests: [not_null]
+
+  # ---------------------------------------------------------------------------
+  - name: dim_classification
+    description: >
+      Gold dimension — Business line / class segment. SCD1.
+      Grain: one row per class.
+      Used to slice P&L by revenue stream (Services vs Products).
+    config:
+      materialized: incremental
+      unique_key: classification_key
+      incremental_strategy: merge
+      tags: [gold, dimension, classification]
+    columns:
+      - name: classification_key
+        tests: [not_null, unique]
+      - name: classification_id
+        tests: [not_null]
+      - name: classification_name
+        tests: [not_null]
+      - name: is_active
+        tests: [not_null]
+      - name: dw_created_at
+        tests: [not_null]
+      - name: dw_updated_at
+        tests: [not_null]
+
+  # ---------------------------------------------------------------------------
+  - name: dim_currency
+    description: >
+      Gold dimension — Currency master. SCD1.
+      Grain: one row per currency.
+      IS_BASE_CURRENCY identifies USD as group reporting currency.
+    config:
+      materialized: incremental
+      unique_key: currency_key
+      incremental_strategy: merge
+      tags: [gold, dimension, currency]
+    columns:
+      - name: currency_key
+        tests: [not_null, unique]
+      - name: currency_id
+        tests: [not_null]
+      - name: is_base_currency
+        description: "TRUE for USD — group reporting currency"
+        tests: [not_null]
+      - name: is_active
+        tests: [not_null]
+      - name: dw_created_at
+        tests: [not_null]
+      - name: dw_updated_at
+        tests: [not_null]

@@ -1,0 +1,53 @@
+name: 'BusinessUpskilling_22724'
+version: '1.0.0'
+config-version: 2
+profile: 'BusinessUpskilling_22724'
+
+model-paths:    ["models"]
+macro-paths:    ["macros"]
+test-paths:     ["tests"]
+seed-paths:     ["seeds"]
+snapshot-paths: ["snapshots"]
+analysis-paths: ["analyses"]
+target-path:    "target"
+clean-targets:  ["target", "dbt_packages"]
+
+vars:
+  silver_database:  'BUI_SUBBARAO_VEMURI_DB'
+  bronze_database:  'BUI_SUBBARAO_VEMURI_DB'
+  bronze_schema:    'RAW_NETSUITE_22724'
+  gold_database:    'BUI_SUBBARAO_VEMURI_DB'
+  gold_schema:      'GOLD'
+  environment:      'dev'
+  default_timezone: 'UTC'
+  min_date:         '2020-01-01'
+  max_date:         '2099-12-31'
+
+models:
+  BusinessUpskilling_22724:
+    staging:
+      +materialized:         incremental
+      +incremental_strategy: merge
+      +schema:               SILVER
+      +tags:                 ["silver", "staging", "netsuite"]
+      +on_schema_change:     fail
+    gold:
+      +schema:               GOLD
+      +on_schema_change:     fail
+      dimensions:
+        +materialized:         incremental
+        +incremental_strategy: merge
+        +full_refresh:         false
+      facts:
+        +materialized:         incremental
+        +incremental_strategy: merge
+        +full_refresh:         false
+
+data_tests:
+  +store_failures: true
+  +schema:         TEST_FAILURES
+
+quoting:
+  database:   true
+  schema:     true
+  identifier: true
