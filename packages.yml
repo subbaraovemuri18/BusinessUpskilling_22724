@@ -1,5 +1,0 @@
-# The output have been generated with the assistance of Claude at 2026-06-12T10:00:00Z UTC. The content has been verified by the designated engineer.
-
-packages:
-  - package: dbt-labs/dbt_utils
-    version: [">=1.0.0", "<2.0.0"]
