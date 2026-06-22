@@ -21,6 +21,11 @@
 -- FX note     : GENERAL_RATE drives translation method in FACT_GL_JOURNAL
 --               (Average = P&L accounts, Current = BS asset/liability, Historical = equity)
 -- Surrogate key: dbt_utils.generate_surrogate_key(['id'])
+-- Fix (2026-06): CASHFLOWRATE is NULL in source NetSuite — Cash Flow categories
+--               are derived from ACCOUNT_TYPE instead:
+--               Operating  → Income, COGS, Expense, Bank, AcctRec, OthCurrAsset, AcctPay, OthCurrLiab
+--               Investing  → FixedAsset, OthAsset
+--               Financing  → LongTermLiab, Equity, RetainEarnings
 -- Generator   : gold-script-generator | Snowflake + dbt | PCP Capstone | 2026-06
 -- =============================================================================
 
@@ -66,6 +71,7 @@ renamed AS (
                 THEN 'Non-Posting'
             ELSE 'Other'
         END                                                             AS account_type_group,
+
         -- P&L vs Balance Sheet routing flag
         CASE
             WHEN ACCOUNT_TYPE IN (
@@ -82,8 +88,32 @@ renamed AS (
         -- Average = P&L | Current = BS asset/liability | Historical = equity
         GENERAL_RATE                                            AS fx_translation_rate_type,
 
-        -- Cash flow classification (Operating / Investing / Financing)
-        CASHFLOWRATE                                            AS cash_flow_rate,
+        -- =================================================================
+        -- Cash flow classification — DERIVED from ACCOUNT_TYPE
+        -- Source CASHFLOWRATE is NULL in this NetSuite instance (not configured)
+        -- Mapping follows indirect method cash flow classification:
+        --   Operating  → P&L accounts + working capital BS accounts
+        --   Investing  → Long-term asset accounts (CapEx)
+        --   Financing  → Long-term liabilities + equity accounts
+        -- =================================================================
+        CASE
+            WHEN ACCOUNT_TYPE IN (
+                'Income', 'OthIncome',
+                'COGS',
+                'Expense', 'OthExpense',
+                'Bank', 'AcctRec', 'OthCurrAsset',
+                'AcctPay', 'OthCurrLiab',
+                'UnbilledRec', 'CredCard'
+            ) THEN 'Operating'
+            WHEN ACCOUNT_TYPE IN (
+                'FixedAsset', 'OthAsset'
+            ) THEN 'Investing'
+            WHEN ACCOUNT_TYPE IN (
+                'LongTermLiab',
+                'Equity', 'RetainEarnings'
+            ) THEN 'Financing'
+            ELSE NULL  -- NonPosting, Stat, DeferRevenue excluded from Cash Flow
+        END                                                     AS cash_flow_rate,
 
         -- Account hierarchy
         PARENT                                                  AS parent_account_id,
