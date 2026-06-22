@@ -26,6 +26,9 @@
 --   BS accounts   → CURRENT_RATE
 --   Equity        → HISTORICAL_RATE
 -- Note: SUBSIDIARY sourced from TRANSACTION_LINE (not on TRANSACTION header)
+-- Fix (2026-06): cash_flow_category now sourced from GOLD.dim_account.cash_flow_rate
+--               instead of SILVER.stg_ns_account.CASHFLOWRATE which is NULL in source.
+--               dim_account derives cash_flow_category from ACCOUNT_TYPE mapping.
 -- Column names verified against Silver scripts 2026-06-16
 -- =============================================================================
 
@@ -86,7 +89,6 @@ acct AS (
         ID,
         ACCOUNT_TYPE,
         GENERAL_RATE,
-        CASHFLOWRATE,
         IS_SUMMARY          AS is_summary_account,
         FULL_NAME           AS account_full_name
     FROM {{ ref('stg_ns_account') }}
@@ -107,12 +109,14 @@ fx AS (
       AND IS_PERIOD_CLOSED          = TRUE
 ),
 
-dim_acct   AS (SELECT account_id,         account_key         FROM {{ ref('dim_account') }}),
-dim_sub    AS (SELECT subsidiary_id,      subsidiary_key      FROM {{ ref('dim_subsidiary') }}),
-dim_period AS (SELECT period_id,          period_key          FROM {{ ref('dim_period') }}),
-dim_dept   AS (SELECT department_id,      department_key      FROM {{ ref('dim_department') }}),
-dim_class  AS (SELECT classification_id,  classification_key  FROM {{ ref('dim_classification') }}),
-dim_curr   AS (SELECT currency_id,        currency_key        FROM {{ ref('dim_currency') }}),
+-- Pull cash_flow_rate from dim_account (derived from ACCOUNT_TYPE mapping)
+-- This replaces the NULL CASHFLOWRATE from Silver stg_ns_account
+dim_acct   AS (SELECT account_id, account_key, cash_flow_rate  FROM {{ ref('dim_account') }}),
+dim_sub    AS (SELECT subsidiary_id,      subsidiary_key       FROM {{ ref('dim_subsidiary') }}),
+dim_period AS (SELECT period_id,          period_key           FROM {{ ref('dim_period') }}),
+dim_dept   AS (SELECT department_id,      department_key       FROM {{ ref('dim_department') }}),
+dim_class  AS (SELECT classification_id,  classification_key   FROM {{ ref('dim_classification') }}),
+dim_curr   AS (SELECT currency_id,        currency_key         FROM {{ ref('dim_currency') }}),
 
 joined AS (
     SELECT
@@ -132,12 +136,12 @@ joined AS (
         tl.line_memo,
 
         -- Dimension foreign keys
-        dim_acct.account_key                      AS account_key,
-        dim_sub.subsidiary_key                    AS subsidiary_key,
-        dim_period.period_key                     AS period_key,
-        dim_dept.department_key                   AS department_key,
-        dim_class.classification_key              AS classification_key,
-        dim_curr.currency_key                     AS currency_key,
+        dim_acct.account_key                                            AS account_key,
+        dim_sub.subsidiary_key                                          AS subsidiary_key,
+        dim_period.period_key                                           AS period_key,
+        dim_dept.department_key                                         AS department_key,
+        dim_class.classification_key                                    AS classification_key,
+        dim_curr.currency_key                                           AS currency_key,
 
         -- Raw IDs
         tal.ACCOUNT                                                     AS account_id,
@@ -150,7 +154,10 @@ joined AS (
         -- Account classification
         acct.ACCOUNT_TYPE                                               AS account_type,
         acct.GENERAL_RATE                                               AS fx_translation_rate_type,
-        acct.CASHFLOWRATE                                               AS cash_flow_category,
+
+        -- Cash flow category — sourced from dim_account (derived from ACCOUNT_TYPE)
+        -- NOT from Silver CASHFLOWRATE which is NULL in this NetSuite instance
+        dim_acct.cash_flow_rate                                         AS cash_flow_category,
 
         -- Amounts in functional currency
         tal.AMOUNT                                                      AS amount_functional,
